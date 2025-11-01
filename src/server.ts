@@ -8,8 +8,9 @@ const startServer = async (): Promise<void> => {
     await connectDatabase();
 
     // Start server
-    const server = app.listen(config.port, () => {
-      console.log(`🚀 Dominica News API running in ${config.nodeEnv} mode on port ${config.port}`);
+    const port = process.env.PORT || config.port;
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Dominica News API running in ${config.nodeEnv} mode on port ${port}`);
     });
 
     // Handle unhandled promise rejections
