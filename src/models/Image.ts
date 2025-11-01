@@ -71,8 +71,7 @@ const imageSchema = new Schema<IImage>(
   }
 );
 
-// Indexes for better query performance
-imageSchema.index({ filename: 1 });
+// Indexes for better query performance (filename index is automatically created by unique: true)
 imageSchema.index({ uploadedBy: 1 });
 imageSchema.index({ createdAt: -1 });
 imageSchema.index({ mimeType: 1 });

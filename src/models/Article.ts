@@ -81,8 +81,7 @@ const articleSchema = new Schema<IArticle>(
   }
 );
 
-// Indexes for better query performance
-articleSchema.index({ slug: 1 });
+// Indexes for better query performance (slug index is automatically created by unique: true)
 articleSchema.index({ categoryId: 1 });
 articleSchema.index({ authorId: 1 });
 articleSchema.index({ status: 1 });
