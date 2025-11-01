@@ -17,29 +17,45 @@ import { seedRoutes } from './routes/seed';
 
 const app = express();
 
-// ✅ 1. CORS configuration — Allow all origins (for now)
+// ✅ 1. Trust Railway / Vercel proxies to handle IPs properly
+app.set('trust proxy', 1);
+
+// ✅ 2. Fix malformed X-Forwarded-For headers (prevents rate-limit crash)
+app.use((req, res, next) => {
+  const xff = req.headers['x-forwarded-for'];
+  if (Array.isArray(xff)) {
+    req.headers['x-forwarded-for'] = xff[0];
+  } else if (typeof xff === 'string' && xff.includes(',')) {
+    req.headers['x-forwarded-for'] = xff.split(',')[0].trim();
+  }
+  next();
+});
+
+// ✅ 3. CORS configuration
 app.use(
   cors({
-    origin: '*', // Allow all origins — you can restrict this later to your production domain
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// ✅ 2. Security middleware
+// ✅ 4. Security middleware
 app.use(helmetConfig);
 app.use(securityHeaders);
+
+// ✅ 5. Apply rate limiter safely (after proxy fix)
 app.use(rateLimiter);
 app.use(sanitizeInput);
 
-// ✅ 3. Body parsing middleware
+// ✅ 6. Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ✅ 4. Static file serving (optional, for images or uploads)
+// ✅ 7. Static file serving (optional, for images or uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// ✅ 5. Root route for Railway & uptime monitoring
+// ✅ 8. Root route for Railway & uptime monitoring
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -49,7 +65,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// ✅ 6. API routes
+// ✅ 9. API routes
 app.use('/api', healthRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/test', testDbRoutes);
@@ -60,7 +76,7 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/images', imageRoutes);
 
-// ✅ 7. Error handling middleware
+// ✅ 10. Error handling middleware
 app.use(notFound);
 app.use(errorHandler);
 
