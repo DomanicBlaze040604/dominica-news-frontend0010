@@ -3,16 +3,7 @@ import { config } from './config';
 
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(config.mongodbUri, {
-      serverSelectionTimeoutMS: 10000, // 10 seconds
-      socketTimeoutMS: 10000, // 10 seconds  
-      connectTimeoutMS: 10000, // 10 seconds
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 5, // Maintain a minimum of 5 socket connections
-      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-      bufferMaxEntries: 0, // Disable mongoose buffering
-      bufferCommands: false, // Disable mongoose buffering
-    });
+    const conn = await mongoose.connect(config.mongodbUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('Database connection error:', error);
