@@ -9,7 +9,7 @@ const app = express();
 // Security middleware
 app.use(helmetConfig);
 app.use(securityHeaders);
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(rateLimiter);
 app.use(sanitizeInput);
 
