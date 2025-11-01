@@ -15,6 +15,7 @@
     "docker:run": "docker run -p 5000:5000 --env-file .env dominica-news-api",
     "seed": "ts-node src/scripts/seedDatabase.ts",
     "seed:prod": "node dist/scripts/seedDatabase.js",
+    "seed:sample": "ts-node src/scripts/seedSampleData.ts",
     "create-indexes": "ts-node src/scripts/createIndexes.ts",
     "create-indexes:prod": "node dist/scripts/createIndexes.js"
   },
