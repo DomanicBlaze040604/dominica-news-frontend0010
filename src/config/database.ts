@@ -1,19 +1,29 @@
 import mongoose from 'mongoose';
-import { config } from './config';
 
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(config.mongodbUri);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    const mongoURI =
+      process.env.MONGODB_URI ||
+      'mongodb://127.0.0.1:27017/dominica-news';
+
+    if (!mongoURI) {
+      throw new Error('❌ No MongoDB URI found in environment variables');
+    }
+
+    const conn = await mongoose.connect(mongoURI);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('Database connection error:', error);
+    console.error('❌ Database connection error:', error);
     console.error('Please check:');
-    console.error('1. Your IP is whitelisted in MongoDB Atlas');
-    console.error('2. Your MongoDB connection string is correct');
-    console.error('3. Your network connection is stable');
-    // Don't exit in serverless environment
+    console.error('1️⃣ IP is whitelisted in MongoDB Atlas');
+    console.error('2️⃣ MONGODB_URI is set correctly in Railway Variables');
+    console.error('3️⃣ Network connection is stable');
+
+    // ❗ Do not exit on Railway — just throw
     if (process.env.NODE_ENV !== 'production') {
       process.exit(1);
+    } else {
+      throw error;
     }
   }
 };
@@ -21,7 +31,7 @@ export const connectDatabase = async (): Promise<void> => {
 export const disconnectDatabase = async (): Promise<void> => {
   try {
     await mongoose.disconnect();
-    console.log('MongoDB Disconnected');
+    console.log('🛑 MongoDB Disconnected');
   } catch (error) {
     console.error('Database disconnection error:', error);
   }
