@@ -12,26 +12,31 @@ export const register = asyncHandler(async (
 ): Promise<void> => {
   const { email, password, fullName } = req.body;
 
-  // Check if user already exists
+  // ✅ Validate required fields
+  if (!email || !password || !fullName) {
+    throw new CustomError('All fields (email, password, fullName) are required', 400);
+  }
+
+  // ✅ Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new CustomError('User already exists with this email', 409);
   }
 
-  // 🧠 Assign role based on environment admin or default user
-  const isAdmin = email === process.env.ADMIN_EMAIL;
+  // ✅ Determine role
+  const isAdmin = email === process.env.ADMIN_EMAIL?.trim();
 
-  // Create new user
+  // ✅ Create new user
   const user = new User({
     email,
-    passwordHash: password,
+    passwordHash: password, // handled by pre-save middleware
     fullName,
-    role: isAdmin ? 'admin' : 'user', // ✅ Only the configured admin gets admin role
+    role: isAdmin ? 'admin' : 'user',
   });
 
   await user.save();
 
-  // Generate JWT token
+  // ✅ Generate JWT token
   const token = generateToken({
     userId: (user._id as any).toString(),
     email: user.email,
@@ -40,7 +45,7 @@ export const register = asyncHandler(async (
 
   res.status(201).json({
     success: true,
-    message: 'User registered successfully',
+    message: `User registered successfully as ${user.role}`,
     data: {
       user: user.toJSON(),
       token,
@@ -48,85 +53,79 @@ export const register = asyncHandler(async (
   });
 });
 
-// 🧩 Login
-export const login = async (
+// 🧩 Login existing user
+export const login = asyncHandler(async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      throw new CustomError('Validation failed', 400);
-    }
-
-    const { email, password } = req.body;
-
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      throw new CustomError('Invalid credentials', 401);
-    }
-
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      throw new CustomError('Invalid credentials', 401);
-    }
-
-    // Generate JWT
-    const token = generateToken({
-      userId: (user._id as any).toString(),
-      email: user.email,
-      role: user.role,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: user.toJSON(),
-        token,
-      },
-    });
-  } catch (error) {
-    next(error);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new CustomError('Validation failed', 400);
   }
-};
+
+  const { email, password } = req.body;
+
+  // ✅ Find user
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new CustomError('Invalid credentials', 401);
+  }
+
+  // ✅ Verify password
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    throw new CustomError('Invalid credentials', 401);
+  }
+
+  // ✅ Upgrade admin if email matches
+  if (email === process.env.ADMIN_EMAIL?.trim() && user.role !== 'admin') {
+    user.role = 'admin';
+    await user.save();
+  }
+
+  // ✅ Generate JWT
+  const token = generateToken({
+    userId: (user._id as any).toString(),
+    email: user.email,
+    role: user.role,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Login successful',
+    data: {
+      user: user.toJSON(),
+      token,
+    },
+  });
+});
 
 // 🧩 Get current user
-export const getMe = async (
+export const getMe = asyncHandler(async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    if (!req.user) throw new CustomError('User not authenticated', 401);
+  if (!req.user) throw new CustomError('User not authenticated', 401);
 
-    const user = await User.findById(req.user.id);
-    if (!user) throw new CustomError('User not found', 404);
+  const user = await User.findById(req.user.id);
+  if (!user) throw new CustomError('User not found', 404);
 
-    res.status(200).json({
-      success: true,
-      data: { user: user.toJSON() },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  res.status(200).json({
+    success: true,
+    data: { user: user.toJSON() },
+  });
+});
 
 // 🧩 Logout
-export const logout = async (
+export const logout = asyncHandler(async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    res.status(200).json({
-      success: true,
-      message: 'Logout successful',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  res.status(200).json({
+    success: true,
+    message: 'Logout successful',
+  });
+});
