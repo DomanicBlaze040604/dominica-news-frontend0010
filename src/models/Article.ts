@@ -39,6 +39,7 @@ const ArticleSchema: Schema = new Schema({
     type: String,
     required: [true, 'Article title is required'],
     trim: true,
+    minlength: [5, 'Title must be at least 5 characters long'],
     maxlength: [200, 'Title cannot exceed 200 characters']
   },
   slug: {
@@ -49,11 +50,12 @@ const ArticleSchema: Schema = new Schema({
   },
   content: {
     type: String,
-    required: [true, 'Article content is required']
+    required: [true, 'Article content is required'],
+    trim: true
   },
   excerpt: {
     type: String,
-    required: [true, 'Article excerpt is required'],
+    trim: true,
     maxlength: [300, 'Excerpt cannot exceed 300 characters']
   },
   featuredImage: {
@@ -150,12 +152,19 @@ const ArticleSchema: Schema = new Schema({
   }
 }, {
   timestamps: true,
-  toJSON: { virtuals: true },
+  toJSON: { 
+    virtuals: true,
+    transform: function(doc: any, ret: any) {
+      ret.id = ret._id;
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    }
+  },
   toObject: { virtuals: true }
 });
 
-// Indexes for performance
-ArticleSchema.index({ slug: 1 });
+// Indexes for performance (slug index is created automatically by unique: true)
 ArticleSchema.index({ status: 1, publishedAt: -1 });
 ArticleSchema.index({ author: 1 });
 ArticleSchema.index({ category: 1 });
@@ -176,7 +185,7 @@ ArticleSchema.pre('save', function(next) {
   }
   
   // Calculate reading time (average 200 words per minute)
-  if (this.content) {
+  if (this.content && typeof this.content === 'string') {
     const wordCount = this.content.replace(/<[^>]*>/g, '').split(/\s+/).length;
     this.readingTime = Math.ceil(wordCount / 200);
   }

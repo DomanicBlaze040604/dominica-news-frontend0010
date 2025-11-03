@@ -75,3 +75,7 @@ export const authorize = (...roles: string[]) => {
 
 // Middleware specifically for admin routes
 export const requireAdmin = authorize('admin');
+
+// Aliases for backward compatibility
+export const authenticateToken = authenticate;
+export const requireRole = (roles: string[]) => authorize(...roles);

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import Article, { IArticle } from '../models/Article';
 import Author from '../models/Author';
-import Category from '../models/Category';
-import { generateSlug } from '../utils/slugify';
+import { Category } from '../models/Category';
+import { slugify } from '../utils/slugify';
 import { getDominicanTime, toDominicanTime } from '../utils/timezone';
 
 // Create article with rich text content
@@ -28,7 +28,7 @@ export const createArticle = async (req: Request, res: Response) => {
     } = req.body;
 
     // Generate slug from title
-    const slug = generateSlug(title);
+    const slug = slugify(title);
 
     // Check if slug already exists
     const existingArticle = await Article.findOne({ slug });
@@ -219,7 +219,7 @@ export const updateArticle = async (req: Request, res: Response) => {
 
     // If title is being updated, regenerate slug
     if (updateData.title) {
-      const newSlug = generateSlug(updateData.title);
+      const newSlug = slugify(updateData.title);
       const existingArticle = await Article.findOne({ slug: newSlug, _id: { $ne: id } });
       
       if (existingArticle) {

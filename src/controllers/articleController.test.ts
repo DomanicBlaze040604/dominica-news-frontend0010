@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../app';
-import { Article } from '../models/Article';
+import Article from '../models/Article';
 import { Category } from '../models/Category';
 import { User } from '../models/User';
 import { generateToken } from '../utils/jwt';
