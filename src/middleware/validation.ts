@@ -63,7 +63,7 @@ export const validateArticle = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Article excerpt cannot exceed 500 characters'),
-  body('categoryId')
+  body('category')
     .isMongoId()
     .withMessage('Please provide a valid category ID'),
   body('status')
@@ -173,4 +173,46 @@ export const validateRateLimit = [
       
       return true;
     }),
+];
+// Settings validation
+export const validateSettings = [
+  body('siteName')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Site name must be between 1 and 100 characters'),
+  body('siteDescription')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Site description cannot exceed 500 characters'),
+  body('socialMedia.facebook')
+    .optional()
+    .isURL()
+    .withMessage('Facebook URL must be valid'),
+  body('socialMedia.twitter')
+    .optional()
+    .isURL()
+    .withMessage('Twitter URL must be valid'),
+  body('socialMedia.instagram')
+    .optional()
+    .isURL()
+    .withMessage('Instagram URL must be valid'),
+  body('socialMedia.youtube')
+    .optional()
+    .isURL()
+    .withMessage('YouTube URL must be valid'),
+  body('contactInfo.email')
+    .optional()
+    .isEmail()
+    .withMessage('Contact email must be valid'),
+  body('contactInfo.phone')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Phone number cannot exceed 20 characters'),
+  body('maintenanceMode')
+    .optional()
+    .isBoolean()
+    .withMessage('Maintenance mode must be true or false'),
 ];

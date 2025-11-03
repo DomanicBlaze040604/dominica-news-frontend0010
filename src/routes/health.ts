@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 const router = Router();
 
 // Health check endpoint
-router.get('/health', async (req: Request, res: Response): Promise<void> => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     // Check database connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';

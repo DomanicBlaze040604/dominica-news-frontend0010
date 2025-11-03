@@ -16,6 +16,7 @@
     "seed": "ts-node src/scripts/seedDatabase.ts",
     "seed:prod": "node dist/scripts/seedDatabase.js",
     "seed:sample": "ts-node src/scripts/seedSampleData.ts",
+    "seed:content": "ts-node src/scripts/seedSampleContent.ts",
     "create-indexes": "ts-node src/scripts/createIndexes.ts",
     "create-indexes:prod": "node dist/scripts/createIndexes.js",
     "optimize-db": "ts-node src/scripts/optimizeDatabase.ts",
@@ -32,6 +33,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/node-cron": "^3.0.11",
+    "axios": "^1.13.1",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",

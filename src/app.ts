@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth';
 import { articleRoutes } from './routes/articles';
 import { authorRoutes } from './routes/authors';
 import { categoryRoutes } from './routes/categories';
+import { settingsRoutes } from './routes/settings';
 import healthRoutes from './routes/health';
 import { debugRoutes } from './routes/debug';
 import { testDbRoutes } from './routes/test-db';
@@ -52,6 +53,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/authors', authorRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/test-db', testDbRoutes);
@@ -75,5 +77,6 @@ app.use('*', (_req: Request, res: Response) => {
 });
 
 // Error handling middleware 
+app.use(errorHandler);
 
 export default app;
