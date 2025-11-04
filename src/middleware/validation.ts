@@ -216,3 +216,55 @@ export const validateSettings = [
     .isBoolean()
     .withMessage('Maintenance mode must be true or false'),
 ];
+
+// Static page validation
+export const validateStaticPage = [
+  body('title')
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Page title must be between 2 and 200 characters'),
+  body('content')
+    .trim()
+    .isLength({ min: 10 })
+    .withMessage('Page content must be at least 10 characters long'),
+  body('slug')
+    .optional()
+    .trim()
+    .matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .withMessage('Slug must contain only lowercase letters, numbers, and hyphens'),
+  body('metaTitle')
+    .optional()
+    .trim()
+    .isLength({ max: 60 })
+    .withMessage('Meta title cannot exceed 60 characters'),
+  body('metaDescription')
+    .optional()
+    .trim()
+    .isLength({ max: 160 })
+    .withMessage('Meta description cannot exceed 160 characters'),
+  body('keywords')
+    .optional()
+    .isArray()
+    .withMessage('Keywords must be an array'),
+  body('keywords.*')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Each keyword must be between 1 and 50 characters'),
+  body('isPublished')
+    .optional()
+    .isBoolean()
+    .withMessage('Published status must be true or false'),
+  body('showInMenu')
+    .optional()
+    .isBoolean()
+    .withMessage('Show in menu must be true or false'),
+  body('menuOrder')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Menu order must be a non-negative integer'),
+  body('template')
+    .optional()
+    .isIn(['default', 'about', 'contact', 'privacy', 'terms'])
+    .withMessage('Template must be one of: default, about, contact, privacy, terms'),
+];

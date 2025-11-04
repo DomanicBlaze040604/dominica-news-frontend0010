@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import responseTime from 'response-time';
+import path from 'path';
 
 // Import routes
 import { authRoutes } from './routes/auth';
@@ -13,15 +14,13 @@ import { articleRoutes } from './routes/articles';
 import { authorRoutes } from './routes/authors';
 import { categoryRoutes } from './routes/categories';
 import { settingsRoutes } from './routes/settings';
-import healthRoutes from './routes/health';
-import { debugRoutes } from './routes/debug';
-import { testDbRoutes } from './routes/test-db';
 import { imageRoutes } from './routes/images';
-
-// Import middleware
+import { breakingNewsRoutes } from './routes/breaking-news';
+import { staticPageRoutes } from './routes/staticPages';
+import healthRoutes from './routes/health';
 import { errorHandler } from './middleware/errorHandler';
 
-// Load environment variables
+// Load env
 dotenv.config();
 
 const app: Application = express();
@@ -32,7 +31,7 @@ const app: Application = express();
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 // -----------------------------------------------------------------------------
-// 🌍 CORS Configuration (Production Safe)
+// 🌍 CORS
 // -----------------------------------------------------------------------------
 const allowedOrigins = [
   'http://localhost:3000',
@@ -40,7 +39,7 @@ const allowedOrigins = [
   'https://dominicanews.dm',
   'https://www.dominicanews.dm',
   'https://dominicanews.vercel.app',
-  'https://dominicanews.netlify.app',
+  'https://dominica-news-frontend0000001.vercel.app',
 ];
 
 if (process.env.FRONTEND_URL) {
@@ -49,62 +48,44 @@ if (process.env.FRONTEND_URL) {
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow Postman/server-side
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      console.warn(`🚫 CORS blocked request from: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`🚫 CORS Blocked Request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-    ],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
   })
 );
 
 // -----------------------------------------------------------------------------
-// ⚙️ Rate Limiting (Production-Scale)
+// ⚙️ Rate Limiting
 // -----------------------------------------------------------------------------
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
+  windowMs: 1 * 60 * 1000,
   limit: 5000,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: { success: false, message: 'Rate limit exceeded. Please slow down.' },
   skip: (req) =>
-    req.path === '/api/health' ||
-    req.path.startsWith('/api/settings') ||
+    req.path.startsWith('/api/health') ||
     req.path.startsWith('/api/articles') ||
     req.path.startsWith('/api/categories'),
 });
 app.use(limiter);
 
 // -----------------------------------------------------------------------------
-// ⚡ Performance Middleware
+// ⚡ Middleware
 // -----------------------------------------------------------------------------
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 app.use(responseTime());
-
-if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined'));
-}
+if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
 // -----------------------------------------------------------------------------
-// 🧠 Cache-Control (for static GET endpoints)
+// 🖼️ Static Files
 // -----------------------------------------------------------------------------
-app.use((req, res, next) => {
-  if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
-  }
-  next();
-});
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // -----------------------------------------------------------------------------
 // 🚏 API Routes
@@ -114,54 +95,37 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/authors', authorRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/health', healthRoutes);
-app.use('/api/debug', debugRoutes);
-app.use('/api/test-db', testDbRoutes);
 app.use('/api/images', imageRoutes);
+app.use('/api/breaking-news', breakingNewsRoutes);
+app.use('/api/static-pages', staticPageRoutes);
+app.use('/api/health', healthRoutes);
 
-// -----------------------------------------------------------------------------
-// 🧩 Admin Route Mirrors (Frontend Compatibility)
-// -----------------------------------------------------------------------------
-// These make sure /api/admin/* works exactly like /api/*
+// ✅ Admin route aliases (frontend expects /api/admin/...)
 app.use('/api/admin/articles', articleRoutes);
-app.use('/api/admin/authors', authorRoutes);
 app.use('/api/admin/categories', categoryRoutes);
-app.use('/api/admin/images', imageRoutes);
+app.use('/api/admin/authors', authorRoutes);
 app.use('/api/admin/settings', settingsRoutes);
-app.use('/api/admin/debug', debugRoutes);
+app.use('/api/admin/images', imageRoutes);
+app.use('/api/admin/breaking-news', breakingNewsRoutes);
+app.use('/api/admin/static-pages', staticPageRoutes);
 
 // -----------------------------------------------------------------------------
-// 🧩 Temporary API Stubs (Prevents Frontend 404s)
+// 🏠 Root
 // -----------------------------------------------------------------------------
-app.get('/api/breaking-news', (_req: Request, res: Response) => {
-  res.json({ success: true, articles: [] });
-});
-
-app.get('/api/settings/featured_section', (_req: Request, res: Response) => {
-  res.json({ success: true, featured: [] });
-});
-
-// -----------------------------------------------------------------------------
-// 🏠 Root Route
-// -----------------------------------------------------------------------------
-app.get('/', (_req: Request, res: Response) => {
-  res.status(200).json({
+app.get('/', (_req, res) => {
+  res.json({
     app: 'Dominica News API',
-    version: '1.0.0',
-    status: 'running ✅',
+    version: '2.0.0',
     domain: 'https://dominicanews.dm',
-    environment: process.env.NODE_ENV || 'development',
+    status: 'running ✅',
   });
 });
 
 // -----------------------------------------------------------------------------
-// ❌ 404 Handler
+// ❌ 404
 // -----------------------------------------------------------------------------
 app.use('*', (_req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-  });
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 // -----------------------------------------------------------------------------
@@ -169,9 +133,6 @@ app.use('*', (_req: Request, res: Response) => {
 // -----------------------------------------------------------------------------
 app.use(errorHandler);
 
-// -----------------------------------------------------------------------------
-// 🚨 Fallback Error Safety Net
-// -----------------------------------------------------------------------------
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('🔥 Unexpected Error:', err);
   res.status(500).json({
