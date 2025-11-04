@@ -1,8 +1,13 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
 import app from './app';
 import { config } from './config/config';
 import { connectDatabase } from './config/database';
 import { User } from './models/User';
 import bcrypt from 'bcryptjs';
+
+dotenv.config();
 
 const startServer = async (): Promise<void> => {
   try {
@@ -12,18 +17,33 @@ const startServer = async (): Promise<void> => {
     await connectDatabase();
     console.log('✅ Database connection established.');
 
-    // ✅ Seed admin user if not exists
+    // ✅ Apply global CORS for frontend on Vercel
+    app.use(cors({
+      origin: [
+        'https://dominica-news-frontend.vercel.app', // production frontend
+        'http://localhost:5173', // local dev
+      ],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      credentials: true,
+    }));
+
+    // ✅ Basic test route for API health
+    app.get('/api/health', (req, res) => {
+      res.json({ status: 'ok', message: 'Dominica News API is live 🚀' });
+    });
+
+    // ✅ Seed admin user
     await seedAdmin();
 
     // ✅ Determine the port (Railway auto-assigns PORT)
     const port: number = Number(process.env.PORT) || Number(config.port) || 8080;
 
     // ✅ Start the Express server
-    const server = app.listen(port, () => {
+    const server = app.listen(port, '0.0.0.0', () => {
       console.log(`🚀 Dominica News API running in ${config.nodeEnv} mode on port ${port}`);
     });
 
-    // ✅ Handle graceful shutdown signals
+    // ✅ Handle graceful shutdown
     const gracefulShutdown = (signal: string) => {
       console.log(`⚠️ Received ${signal}. Shutting down gracefully...`);
       server.close(() => {
@@ -35,7 +55,6 @@ const startServer = async (): Promise<void> => {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-    // ✅ Handle uncaught errors properly
     process.on('unhandledRejection', (err: any) => {
       console.error('❌ Unhandled Promise Rejection:', err);
       server.close(() => process.exit(1));

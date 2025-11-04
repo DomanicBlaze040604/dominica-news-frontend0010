@@ -1,9 +1,11 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
+import dotenv from 'dotenv';
+import responseTime from 'response-time';
 
 // Import routes
 import { authRoutes } from './routes/auth';
@@ -19,49 +21,90 @@ import { imageRoutes } from './routes/images';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 
+// Load environment variables
+dotenv.config();
+
 const app: Application = express();
 
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: function (origin, callback) {
-    const allowedOrigins = process.env.FRONTEND_URL ? 
-      process.env.FRONTEND_URL.split(',') : 
-      ['http://localhost:3000', 'http://localhost:8080', 'https://dominicanews-d2aa9.web.app'];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+// -----------------------------------------------------------------------------
+// 🛡️ Security
+// -----------------------------------------------------------------------------
+app.use(helmet({ crossOriginResourcePolicy: false }));
 
-// Rate limiting
+// -----------------------------------------------------------------------------
+// 🌍 CORS Configuration
+// -----------------------------------------------------------------------------
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://dominicanews.dm',
+  'https://www.dominicanews.dm',
+  'https://dominicanews.vercel.app',
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(...process.env.FRONTEND_URL.split(','));
+}
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // mobile / Postman etc.
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`❌ CORS blocked request from: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  })
+);
+
+// -----------------------------------------------------------------------------
+// ⚙️ Rate Limiting (Production-Scale)
+// -----------------------------------------------------------------------------
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs: 1 * 60 * 1000, // 1 minute
+  limit: 5000, // 5000 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Rate limit exceeded. Please slow down.' },
+  skip: (req) => {
+    // Skip health checks and common reads (read-heavy public traffic)
+    return (
+      req.path === '/api/health' ||
+      req.path.startsWith('/api/settings') ||
+      req.path.startsWith('/api/articles') ||
+      req.path.startsWith('/api/categories')
+    );
+  },
 });
 app.use(limiter);
 
-// Body parsing middleware
+// -----------------------------------------------------------------------------
+// ⚡ Performance Middleware
+// -----------------------------------------------------------------------------
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Compression middleware
 app.use(compression());
+app.use(responseTime()); // Track latency for monitoring
 
-// Logging middleware
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Routes
+// -----------------------------------------------------------------------------
+// 🧠 Cache-Control (for static GET endpoints)
+// -----------------------------------------------------------------------------
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+  }
+  next();
+});
+
+// -----------------------------------------------------------------------------
+// 🚏 API Routes
+// -----------------------------------------------------------------------------
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/authors', authorRoutes);
@@ -72,24 +115,44 @@ app.use('/api/debug', debugRoutes);
 app.use('/api/test-db', testDbRoutes);
 app.use('/api/images', imageRoutes);
 
-// Root route
+// -----------------------------------------------------------------------------
+// 🏠 Root Route
+// -----------------------------------------------------------------------------
 app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    message: 'Dominica News API',
+  res.status(200).json({
+    app: 'Dominica News API',
     version: '1.0.0',
-    status: 'running'
+    status: 'running ✅',
+    domain: 'https://dominicanews.dm',
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
-// 404 handler
+// -----------------------------------------------------------------------------
+// ❌ 404 Handler
+// -----------------------------------------------------------------------------
 app.use('*', (_req: Request, res: Response) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'Route not found',
   });
 });
 
-// Error handling middleware 
+// -----------------------------------------------------------------------------
+// 🧱 Global Error Handler
+// -----------------------------------------------------------------------------
 app.use(errorHandler);
+
+// -----------------------------------------------------------------------------
+// 🚨 Fallback Error Safety Net
+// -----------------------------------------------------------------------------
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('🔥 Unexpected Error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error',
+    error: err.message,
+  });
+});
 
 export default app;
