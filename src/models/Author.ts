@@ -80,7 +80,15 @@ const AuthorSchema: Schema = new Schema({
   }
 }, {
   timestamps: true,
-  toJSON: { virtuals: true },
+  toJSON: { 
+    virtuals: true,
+    transform: function (doc, ret) {
+      (ret as any).id = ret._id;
+      delete (ret as any)._id;
+      delete (ret as any).__v;
+      return ret;
+    }
+  },
   toObject: { virtuals: true }
 });
 

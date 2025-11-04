@@ -15,8 +15,10 @@ const router = express.Router();
 
 // Public routes
 router.get('/', getArticles);
+router.get('/latest', getArticles); // Alias for homepage
 router.get('/breaking', getBreakingNews);
 router.get('/featured', getFeaturedArticles);
+// Dynamic slug route must be last to avoid conflicts
 router.get('/:slug', getArticleBySlug);
 
 // Protected routes (require authentication)
