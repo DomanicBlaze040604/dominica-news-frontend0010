@@ -4,6 +4,7 @@ import { config } from './config/config';
 import { connectDatabase } from './config/database';
 import { User } from './models/User';
 import bcrypt from 'bcryptjs';
+import { settingsRoutes } from './routes/settings'; // ✅ Import the settings route
 
 // -----------------------------------------------------------------------------
 // 🌍 Load environment variables
@@ -22,6 +23,9 @@ const startServer = async (): Promise<void> => {
     // ✅ Connect to MongoDB
     await connectDatabase();
     console.log('✅ MongoDB connection established successfully.');
+
+    // ✅ Add Settings Route (must be before 404 fallback)
+    app.use('/api/settings', settingsRoutes);
 
     // ✅ Health Check Route (Vercel / Railway compatibility)
     app.get('/api/health', (_req, res) => {

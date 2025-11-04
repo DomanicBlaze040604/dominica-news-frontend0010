@@ -34,9 +34,21 @@ export const getCategoryBySlug = asyncHandler(async (req: Request, res: Response
 export const createCategory = asyncHandler(async (req: Request, res: Response) => {
   const { name, slug, description, displayOrder } = req.body;
 
+  // Auto-generate slug from name if not provided
+  const { slugify } = require('../utils/slugify');
+  const generatedSlug = slug || slugify(name);
+
+  // Check if slug already exists and make it unique if needed
+  let uniqueSlug = generatedSlug;
+  let counter = 1;
+  while (await Category.findOne({ slug: uniqueSlug })) {
+    uniqueSlug = `${generatedSlug}-${counter}`;
+    counter++;
+  }
+
   const category = await Category.create({
     name,
-    slug,
+    slug: uniqueSlug,
     description,
     displayOrder
   });
@@ -52,6 +64,22 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
 export const updateCategory = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
+
+  // Auto-generate slug from name if name is being updated but slug is not provided
+  if (updateData.name && !updateData.slug) {
+    const { slugify } = require('../utils/slugify');
+    const generatedSlug = slugify(updateData.name);
+    
+    // Check if slug already exists (excluding current category)
+    let uniqueSlug = generatedSlug;
+    let counter = 1;
+    while (await Category.findOne({ slug: uniqueSlug, _id: { $ne: id } })) {
+      uniqueSlug = `${generatedSlug}-${counter}`;
+      counter++;
+    }
+    
+    updateData.slug = uniqueSlug;
+  }
 
   const category = await Category.findByIdAndUpdate(id, updateData, {
     new: true,

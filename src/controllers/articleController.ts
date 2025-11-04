@@ -27,16 +27,12 @@ export const createArticle = async (req: Request, res: Response) => {
       language
     } = req.body;
 
-    // Generate slug from title
-    const slug = slugify(title);
-
-    // Check if slug already exists
-    const existingArticle = await Article.findOne({ slug });
-    if (existingArticle) {
-      return res.status(400).json({
-        success: false,
-        message: 'Article with this title already exists'
-      });
+    // Generate unique slug from title
+    let slug = slugify(title);
+    let counter = 1;
+    while (await Article.findOne({ slug })) {
+      slug = `${slugify(title)}-${counter}`;
+      counter++;
     }
 
     // Verify author and category exist
@@ -217,16 +213,15 @@ export const updateArticle = async (req: Request, res: Response) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // If title is being updated, regenerate slug
-    if (updateData.title) {
-      const newSlug = slugify(updateData.title);
-      const existingArticle = await Article.findOne({ slug: newSlug, _id: { $ne: id } });
+    // If title is being updated, regenerate unique slug
+    if (updateData.title && !updateData.slug) {
+      let newSlug = slugify(updateData.title);
+      let counter = 1;
       
-      if (existingArticle) {
-        return res.status(400).json({
-          success: false,
-          message: 'Article with this title already exists'
-        });
+      // Make slug unique by checking against other articles (excluding current one)
+      while (await Article.findOne({ slug: newSlug, _id: { $ne: id } })) {
+        newSlug = `${slugify(updateData.title)}-${counter}`;
+        counter++;
       }
       
       updateData.slug = newSlug;
