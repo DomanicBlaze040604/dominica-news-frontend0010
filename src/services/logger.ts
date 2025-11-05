@@ -54,8 +54,40 @@ class Logger {
   }
 
   private ensureLogDirectory(): void {
-    if (!fs.existsSync(this.logDirectory)) {
-      fs.mkdirSync(this.logDirectory, { recursive: true });
+    try {
+      if (!fs.existsSync(this.logDirectory)) {
+        fs.mkdirSync(this.logDirectory, { recursive: true });
+      }
+    } catch (error) {
+      console.warn(`Failed to create log directory ${this.logDirectory}:`, error);
+      
+      // Try fallback directories
+      const fallbackDirs = [
+        '/tmp/logs',
+        path.join(process.cwd(), 'tmp', 'logs'),
+        path.join(__dirname, '..', '..', 'tmp', 'logs')
+      ];
+      
+      let fallbackSuccess = false;
+      for (const fallbackDir of fallbackDirs) {
+        try {
+          if (!fs.existsSync(fallbackDir)) {
+            fs.mkdirSync(fallbackDir, { recursive: true });
+          }
+          this.logDirectory = fallbackDir;
+          this.config.logDirectory = fallbackDir;
+          console.info(`Using fallback log directory: ${fallbackDir}`);
+          fallbackSuccess = true;
+          break;
+        } catch (fallbackError) {
+          console.warn(`Fallback directory ${fallbackDir} also failed:`, fallbackError);
+        }
+      }
+      
+      if (!fallbackSuccess) {
+        console.warn('All log directories failed, disabling file logging');
+        this.config.enableFileLogging = false;
+      }
     }
   }
 
@@ -116,6 +148,9 @@ class Logger {
       fs.appendFileSync(logFilePath, logLine);
     } catch (error) {
       console.error('Failed to write to log file:', error);
+      // Disable file logging if we can't write
+      this.config.enableFileLogging = false;
+      console.warn('File logging has been disabled due to write errors');
     }
   }
 
@@ -274,12 +309,13 @@ class Logger {
   }
 }
 
-// Create singleton instance
+// Create singleton instance with production-friendly defaults
+const isProduction = process.env.NODE_ENV === 'production';
 const logger = new Logger({
   logLevel: process.env.LOG_LEVEL as any || 'info',
-  enableFileLogging: process.env.ENABLE_FILE_LOGGING !== 'false',
+  enableFileLogging: process.env.ENABLE_FILE_LOGGING === 'true' || (!isProduction && process.env.ENABLE_FILE_LOGGING !== 'false'),
   enableConsoleLogging: process.env.ENABLE_CONSOLE_LOGGING !== 'false',
-  logDirectory: process.env.LOG_DIRECTORY || path.join(process.cwd(), 'logs'),
+  logDirectory: process.env.LOG_DIRECTORY || (isProduction ? '/tmp/logs' : path.join(process.cwd(), 'logs')),
   maxLogFileSize: parseInt(process.env.MAX_LOG_FILE_SIZE || '10'),
   maxLogFiles: parseInt(process.env.MAX_LOG_FILES || '5'),
   enableRotation: process.env.ENABLE_LOG_ROTATION !== 'false'

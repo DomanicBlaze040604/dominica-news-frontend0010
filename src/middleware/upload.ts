@@ -2,11 +2,17 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Ensure upload directories exist
+// Ensure upload directories exist with error handling
 const uploadDirs = ['uploads/images', 'uploads/articles', 'uploads/authors', 'uploads/temp'];
 uploadDirs.forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (error) {
+    console.warn(`Failed to create upload directory ${dir}:`, error);
+    // In production environments like Railway, we might not have write permissions
+    // The application will still work, but file uploads will fail gracefully
   }
 });
 

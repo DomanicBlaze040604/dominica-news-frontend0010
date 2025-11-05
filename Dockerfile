@@ -1,57 +1,46 @@
-# ---------------------------
-# 1️⃣ Base image (Builder Stage)
-# ---------------------------
-FROM node:18-alpine AS builder
+# Use Node.js 18 LTS
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files first (better caching)
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /tmp/logs /tmp/uploads && \
+    chown -R nodejs:nodejs /tmp/logs /tmp/uploads
+
+# Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev)
-RUN npm ci
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Copy built application
+COPY dist/ ./dist/
+COPY start-production.js ./
+COPY .env.production ./
 
-# Build TypeScript to JavaScript
-RUN npm run build
-
-
-# ---------------------------
-# 2️⃣ Production image (Runtime Stage)
-# ---------------------------
-FROM node:18-alpine AS production
-
-# Set working directory
-WORKDIR /app
-
-# Copy only essential build artifacts and files from builder
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
-
-# ✅ Create uploads directory (safe even if missing in repo)
-RUN mkdir -p uploads/thumbnails
-
-# Install only production dependencies
-RUN npm ci --only=production
-
-# ✅ Security: Create a non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-
-# ✅ Ensure correct permissions for uploads folder
-RUN chown -R nodejs:nodejs uploads
+# Change ownership of app directory
+RUN chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
 
-# Expose the app port (Railway injects PORT automatically)
-EXPOSE 5000
+# Expose port
+EXPOSE 3001
 
-# ✅ Health check for Railway
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV ENABLE_FILE_LOGGING=false
+ENV LOG_DIRECTORY=/tmp/logs
+
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:${PORT:-5000}/api/health || exit 1
+  CMD node -e "require('http').get('http://localhost:3001/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# ✅ Start the application
+# Start the application
 CMD ["npm", "start"]

@@ -95,10 +95,15 @@ export const uploadImage = async (req: Request, res: Response) => {
     // Get original image metadata
     const metadata = await sharp(file.path).metadata();
     
-    // Create variants directory
+    // Create variants directory with error handling
     const variantsDir = path.join(path.dirname(file.path), 'variants');
-    if (!fs.existsSync(variantsDir)) {
-      fs.mkdirSync(variantsDir, { recursive: true });
+    try {
+      if (!fs.existsSync(variantsDir)) {
+        fs.mkdirSync(variantsDir, { recursive: true });
+      }
+    } catch (error) {
+      console.warn(`Failed to create variants directory ${variantsDir}:`, error);
+      // Continue without variants if directory creation fails
     }
 
     // Process image variants
@@ -210,10 +215,15 @@ export const uploadMultipleImages = async (req: Request, res: Response) => {
         // Get original image metadata
         const metadata = await sharp(file.path).metadata();
         
-        // Create variants directory
+        // Create variants directory with error handling
         const variantsDir = path.join(path.dirname(file.path), 'variants');
-        if (!fs.existsSync(variantsDir)) {
-          fs.mkdirSync(variantsDir, { recursive: true });
+        try {
+          if (!fs.existsSync(variantsDir)) {
+            fs.mkdirSync(variantsDir, { recursive: true });
+          }
+        } catch (error) {
+          console.warn(`Failed to create variants directory ${variantsDir}:`, error);
+          // Continue without variants if directory creation fails
         }
 
         // Process image variants
