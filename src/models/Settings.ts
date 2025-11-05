@@ -21,6 +21,7 @@ export interface ISEOSettings {
   metaDescription?: string;
   keywords?: string[];
   ogImage?: string;
+  canonicalUrl?: string;
 }
 
 export interface ISettings extends Document {
@@ -32,6 +33,7 @@ export interface ISettings extends Document {
   contactInfo: IContactInfo;
   seoSettings: ISEOSettings;
   maintenanceMode: boolean;
+  maintenanceMessage?: string;
   allowRegistration: boolean;
   commentsEnabled: boolean;
   newsletterEnabled: boolean;
@@ -159,11 +161,24 @@ const SettingsSchema: Schema = new Schema({
     }],
     ogImage: {
       type: String
+    },
+    canonicalUrl: {
+      type: String,
+      validate: {
+        validator: function(v: string) {
+          return !v || /^https?:\/\/.+/.test(v);
+        },
+        message: 'Please provide a valid canonical URL'
+      }
     }
   },
   maintenanceMode: {
     type: Boolean,
     default: false
+  },
+  maintenanceMessage: {
+    type: String,
+    maxlength: [500, 'Maintenance message cannot exceed 500 characters']
   },
   allowRegistration: {
     type: Boolean,

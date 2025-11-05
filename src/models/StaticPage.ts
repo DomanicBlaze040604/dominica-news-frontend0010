@@ -69,7 +69,7 @@ const StaticPageSchema: Schema = new Schema({
   },
   template: {
     type: String,
-    enum: ['default', 'about', 'contact', 'privacy', 'terms'],
+    enum: ['default', 'about', 'contact', 'privacy', 'terms', 'editorial'],
     default: 'default'
   }
 }, {

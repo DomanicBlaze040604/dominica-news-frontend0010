@@ -65,7 +65,7 @@ const sampleStaticPages = [
     keywords: ['contact', 'dominica news', 'newsroom', 'phone', 'email', 'address'],
     isPublished: true,
     showInMenu: true,
-    menuOrder: 2,
+    menuOrder: 3,
     template: 'contact'
   },
   {
@@ -104,7 +104,7 @@ const sampleStaticPages = [
     keywords: ['privacy policy', 'data protection', 'cookies', 'personal information'],
     isPublished: true,
     showInMenu: true,
-    menuOrder: 3,
+    menuOrder: 4,
     template: 'privacy'
   },
   {
@@ -140,8 +140,43 @@ const sampleStaticPages = [
     keywords: ['terms of service', 'terms and conditions', 'website rules', 'legal'],
     isPublished: true,
     showInMenu: true,
-    menuOrder: 4,
+    menuOrder: 5,
     template: 'terms'
+  },
+  {
+    title: 'Editorial Team',
+    slug: 'editorial-team',
+    content: `
+      <h1>Meet Our Editorial Team</h1>
+      <p>Our dedicated team of journalists and editors brings you the latest news from Dominica and the Caribbean with professionalism, integrity, and passion.</p>
+      
+      <h2>Our Commitment</h2>
+      <p>We are committed to delivering accurate, timely, and unbiased news coverage that serves the people of Dominica and the wider Caribbean community. Our team combines local expertise with international journalism standards to bring you the stories that matter most.</p>
+      
+      <h2>Editorial Standards</h2>
+      <p>Our editorial team adheres to the highest standards of journalism, including:</p>
+      <ul>
+        <li>Accuracy and fact-checking in all reporting</li>
+        <li>Balanced coverage of controversial topics</li>
+        <li>Respect for privacy and dignity of individuals</li>
+        <li>Transparency in our reporting process</li>
+        <li>Accountability to our readers and community</li>
+      </ul>
+      
+      <h2>Contact Our Editorial Team</h2>
+      <p>Have a story tip or feedback for our editorial team? We'd love to hear from you.</p>
+      <p><strong>Email:</strong> editorial@dominicanews.com<br>
+      <strong>Phone:</strong> +1 (767) 555-NEWS</p>
+      
+      <p><em>Note: Individual author profiles and contact information are displayed below when available.</em></p>
+    `,
+    metaTitle: 'Editorial Team - Meet Our Journalists | Dominica News',
+    metaDescription: 'Meet the dedicated journalists and editors who bring you the latest news from Dominica and the Caribbean.',
+    keywords: ['editorial team', 'journalists', 'editors', 'dominica news', 'news team', 'caribbean journalism'],
+    isPublished: true,
+    showInMenu: true,
+    menuOrder: 2,
+    template: 'editorial'
   },
   {
     title: 'Advertise With Us',
@@ -183,7 +218,7 @@ const sampleStaticPages = [
     keywords: ['advertising', 'marketing', 'dominica', 'caribbean', 'banner ads', 'sponsored content'],
     isPublished: true,
     showInMenu: false,
-    menuOrder: 5,
+    menuOrder: 6,
     template: 'default'
   }
 ];

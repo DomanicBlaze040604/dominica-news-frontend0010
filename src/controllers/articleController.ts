@@ -10,16 +10,18 @@ export const createArticle = async (req: Request, res: Response) => {
   try {
     const {
       title,
+      slug: providedSlug,
       content,
       excerpt,
       featuredImage,
-      gallery,
-      author,
-      category,
+      featuredImageAlt,
+      categoryId,
+      authorId,
       tags,
       status,
-      scheduledFor,
-      seo,
+      scheduledAt,
+      seoTitle,
+      seoDescription,
       isBreaking,
       isFeatured,
       isPinned,
@@ -27,18 +29,21 @@ export const createArticle = async (req: Request, res: Response) => {
       language
     } = req.body;
 
-    // Generate unique slug from title
-    let slug = slugify(title);
+    // Use provided slug or generate from title
+    let slug = providedSlug || slugify(title);
+    
+    // Ensure slug is unique
     let counter = 1;
+    const baseSlug = slug;
     while (await Article.findOne({ slug })) {
-      slug = `${slugify(title)}-${counter}`;
+      slug = `${baseSlug}-${counter}`;
       counter++;
     }
 
     // Verify author and category exist
     const [authorExists, categoryExists] = await Promise.all([
-      Author.findById(author),
-      Category.findById(category)
+      Author.findById(authorId),
+      Category.findById(categoryId)
     ]);
 
     if (!authorExists) {
@@ -61,12 +66,15 @@ export const createArticle = async (req: Request, res: Response) => {
       content,
       excerpt,
       featuredImage,
-      gallery,
-      author,
-      category,
+      featuredImageAlt,
+      author: authorId,
+      category: categoryId,
       tags: tags || [],
       status: status || 'draft',
-      seo: seo || {},
+      seo: {
+        metaTitle: seoTitle,
+        metaDescription: seoDescription,
+      },
       isBreaking: isBreaking || false,
       isFeatured: isFeatured || false,
       isPinned: isPinned || false,
@@ -75,8 +83,8 @@ export const createArticle = async (req: Request, res: Response) => {
     };
 
     // Handle scheduling
-    if (scheduledFor) {
-      articleData.scheduledFor = toDominicanTime(scheduledFor);
+    if (scheduledAt) {
+      articleData.scheduledFor = toDominicanTime(scheduledAt);
     }
 
     // Set published date if publishing immediately
@@ -88,7 +96,7 @@ export const createArticle = async (req: Request, res: Response) => {
     await article.save();
 
     // Update author's article count
-    await Author.findByIdAndUpdate(author, { $inc: { articlesCount: 1 } });
+    await Author.findByIdAndUpdate(authorId, { $inc: { articlesCount: 1 } });
 
     // Populate author and category for response
     await article.populate(['author', 'category']);
@@ -211,16 +219,65 @@ export const getArticleBySlug = async (req: Request, res: Response) => {
 export const updateArticle = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const {
+      title,
+      slug: providedSlug,
+      content,
+      excerpt,
+      featuredImage,
+      featuredImageAlt,
+      categoryId,
+      authorId,
+      status,
+      scheduledAt,
+      isPinned,
+      seoTitle,
+      seoDescription,
+      ...otherFields
+    } = req.body;
 
-    // If title is being updated, regenerate unique slug
-    if (updateData.title && !updateData.slug) {
-      let newSlug = slugify(updateData.title);
+    const updateData: any = {
+      ...otherFields
+    };
+
+    // Update basic fields
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (excerpt !== undefined) updateData.excerpt = excerpt;
+    if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
+    if (featuredImageAlt !== undefined) updateData.featuredImageAlt = featuredImageAlt;
+    if (categoryId !== undefined) updateData.category = categoryId;
+    if (authorId !== undefined) updateData.author = authorId;
+    if (status !== undefined) updateData.status = status;
+    if (isPinned !== undefined) updateData.isPinned = isPinned;
+
+    // Handle SEO fields
+    if (seoTitle !== undefined || seoDescription !== undefined) {
+      updateData.seo = {
+        metaTitle: seoTitle,
+        metaDescription: seoDescription,
+      };
+    }
+
+    // Handle slug - use provided slug or generate from title
+    if (providedSlug) {
+      // Ensure provided slug is unique
+      let slug = providedSlug;
+      let counter = 1;
+      const baseSlug = slug;
+      while (await Article.findOne({ slug, _id: { $ne: id } })) {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+      updateData.slug = slug;
+    } else if (title) {
+      // Generate slug from title if no slug provided
+      let newSlug = slugify(title);
       let counter = 1;
       
       // Make slug unique by checking against other articles (excluding current one)
       while (await Article.findOne({ slug: newSlug, _id: { $ne: id } })) {
-        newSlug = `${slugify(updateData.title)}-${counter}`;
+        newSlug = `${slugify(title)}-${counter}`;
         counter++;
       }
       
@@ -228,13 +285,13 @@ export const updateArticle = async (req: Request, res: Response) => {
     }
 
     // Handle status change to published
-    if (updateData.status === 'published' && !updateData.publishedAt) {
+    if (status === 'published' && !updateData.publishedAt) {
       updateData.publishedAt = getDominicanTime();
     }
 
     // Handle scheduling
-    if (updateData.scheduledFor) {
-      updateData.scheduledFor = toDominicanTime(updateData.scheduledFor);
+    if (scheduledAt) {
+      updateData.scheduledFor = toDominicanTime(scheduledAt);
     }
 
     const article = await Article.findByIdAndUpdate(id, updateData, {
@@ -339,6 +396,72 @@ export const getFeaturedArticles = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching featured articles',
+      error: error.message
+    });
+  }
+};
+
+// Get articles by category slug
+export const getCategoryArticles = async (req: Request, res: Response) => {
+  try {
+    const { categorySlug } = req.params;
+    const {
+      page = 1,
+      limit = 12,
+      status = 'published'
+    } = req.query;
+
+    // Find the category by slug
+    const category = await Category.findOne({ slug: categorySlug });
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get articles for this category
+    const [articles, totalArticles] = await Promise.all([
+      Article.find({ 
+        category: category._id,
+        status: status
+      })
+        .populate('author', 'name email avatar specialization')
+        .populate('category', 'name slug color description')
+        .sort({ isPinned: -1, publishedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      Article.countDocuments({ 
+        category: category._id,
+        status: status
+      })
+    ]);
+
+    const totalPages = Math.ceil(totalArticles / limitNum);
+
+    res.json({
+      success: true,
+      data: {
+        category,
+        articles,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalArticles,
+          hasNextPage: pageNum < totalPages,
+          hasPrevPage: pageNum > 1,
+          limit: limitNum
+        }
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching category articles',
       error: error.message
     });
   }

@@ -5,6 +5,8 @@ export interface ICategory extends Document {
   slug: string;
   description?: string;
   displayOrder: number;
+  color?: string;
+  icon?: string;
   createdAt: Date;
 }
 
@@ -39,6 +41,16 @@ const categorySchema = new Schema<ICategory>(
       default: 0,
       min: [0, 'Display order cannot be negative'],
     },
+    color: {
+      type: String,
+      trim: true,
+      match: [/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color code'],
+    },
+    icon: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Icon name cannot exceed 50 characters'],
+    },
   },
   {
     timestamps: true,
@@ -52,6 +64,14 @@ const categorySchema = new Schema<ICategory>(
     },
   }
 );
+
+// Virtual for article count
+categorySchema.virtual('articleCount', {
+  ref: 'Article',
+  localField: '_id',
+  foreignField: 'category',
+  count: true
+});
 
 // Index is automatically created by unique: true for name and slug
 

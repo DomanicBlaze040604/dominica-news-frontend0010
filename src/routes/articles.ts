@@ -6,24 +6,28 @@ import {
   updateArticle,
   deleteArticle,
   getBreakingNews,
-  getFeaturedArticles
+  getFeaturedArticles,
+  getCategoryArticles
 } from '../controllers/articleController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticate, requireAdmin, requireEditor, optionalAuth } from '../middleware/auth';
 import { validateArticle } from '../middleware/validation';
 
 const router = express.Router();
 
-// Public routes
-router.get('/', getArticles);
-router.get('/latest', getArticles); // Alias for homepage
+// Public routes (with optional auth for personalization)
+router.get('/', optionalAuth, getArticles);
+router.get('/latest', optionalAuth, getArticles); // Alias for homepage
 router.get('/breaking', getBreakingNews);
 router.get('/featured', getFeaturedArticles);
+router.get('/category/:categorySlug', optionalAuth, getCategoryArticles);
 // Dynamic slug route must be last to avoid conflicts
-router.get('/:slug', getArticleBySlug);
+router.get('/:slug', optionalAuth, getArticleBySlug);
 
-// Protected routes (require authentication)
-router.post('/', authenticateToken, requireRole(['admin', 'editor']), validateArticle, createArticle);
-router.put('/:id', authenticateToken, requireRole(['admin', 'editor']), updateArticle);
-router.delete('/:id', authenticateToken, requireRole(['admin']), deleteArticle);
+// Protected routes - Editors and Admins can create and edit
+router.post('/', authenticate, requireEditor, validateArticle, createArticle);
+router.put('/:id', authenticate, requireEditor, updateArticle);
+
+// Admin-only routes - Only admins can delete
+router.delete('/:id', authenticate, requireAdmin, deleteArticle);
 
 export { router as articleRoutes };

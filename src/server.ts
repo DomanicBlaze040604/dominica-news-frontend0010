@@ -27,15 +27,6 @@ const startServer = async (): Promise<void> => {
     // ✅ Add Settings Route (must be before 404 fallback)
     app.use('/api/settings', settingsRoutes);
 
-    // ✅ Health Check Route (Vercel / Railway compatibility)
-    app.get('/api/health', (_req, res) => {
-      res.status(200).json({
-        status: 'ok',
-        message: 'Dominica News API is live 🚀',
-        timestamp: new Date().toISOString(),
-      });
-    });
-
     // ✅ Seed the admin account (idempotent)
     await seedAdmin();
 

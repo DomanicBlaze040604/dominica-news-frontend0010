@@ -17,8 +17,15 @@ import { settingsRoutes } from './routes/settings';
 import { imageRoutes } from './routes/images';
 import { breakingNewsRoutes } from './routes/breaking-news';
 import { staticPageRoutes } from './routes/staticPages';
-import healthRoutes from './routes/health';
+import { adminRoutes } from './routes/admin';
+import { userRoutes } from './routes/users';
+import sitemapRoutes from './routes/sitemap';
+import { healthRoutes } from './routes/health';
+import { errorRoutes } from './routes/errors';
 import { errorHandler } from './middleware/errorHandler';
+import { checkMaintenanceMode } from './middleware/maintenance';
+import { requestIdMiddleware } from './middleware/requestId';
+import { requestLogger, slowRequestLogger } from './middleware/requestLogger';
 
 // Load env
 dotenv.config();
@@ -76,11 +83,16 @@ app.use(limiter);
 // -----------------------------------------------------------------------------
 // ⚡ Middleware
 // -----------------------------------------------------------------------------
+app.use(requestIdMiddleware);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 app.use(responseTime());
-if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+  app.use(requestLogger);
+  app.use(slowRequestLogger(2000)); // Log requests slower than 2 seconds
+}
 
 // -----------------------------------------------------------------------------
 // 🖼️ Static Files
@@ -88,19 +100,25 @@ if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // -----------------------------------------------------------------------------
+// 🛡️ Maintenance Mode Check
+// -----------------------------------------------------------------------------
+app.use(checkMaintenanceMode);
+
+// -----------------------------------------------------------------------------
 // 🚏 API Routes
 // -----------------------------------------------------------------------------
-app.use('/api/auth', authRoutes);
-app.use('/api/articles', articleRoutes);
-app.use('/api/authors', authorRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/images', imageRoutes);
-app.use('/api/breaking-news', breakingNewsRoutes);
-app.use('/api/static-pages', staticPageRoutes);
-app.use('/api/health', healthRoutes);
 
-// ✅ Admin route aliases (frontend expects /api/admin/...)
+// ✅ Admin route aliases (frontend expects /api/admin/...) - MOVED TO TOP
+console.log('Registering admin routes...');
+
+// Test admin endpoint
+app.get('/api/admin/test', (req, res) => {
+  console.log('Admin test endpoint hit!');
+  res.json({ success: true, message: 'Admin test endpoint working' });
+});
+
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/users', userRoutes);
 app.use('/api/admin/articles', articleRoutes);
 app.use('/api/admin/categories', categoryRoutes);
 app.use('/api/admin/authors', authorRoutes);
@@ -108,6 +126,24 @@ app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/admin/images', imageRoutes);
 app.use('/api/admin/breaking-news', breakingNewsRoutes);
 app.use('/api/admin/static-pages', staticPageRoutes);
+console.log('Admin routes registered successfully');
+
+// Regular API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/articles', articleRoutes);
+
+// Health check and error reporting routes
+app.use('/api/health', healthRoutes);
+app.use('/api/errors', errorRoutes);
+app.use('/api/authors', authorRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/images', imageRoutes);
+app.use('/api/breaking-news', breakingNewsRoutes);
+app.use('/api/static-pages', staticPageRoutes);
+
+// Sitemap routes (served at root level)
+app.use('/', sitemapRoutes);
 
 // -----------------------------------------------------------------------------
 // 🏠 Root
@@ -124,8 +160,9 @@ app.get('/', (_req, res) => {
 // -----------------------------------------------------------------------------
 // ❌ 404
 // -----------------------------------------------------------------------------
-app.use('*', (_req: Request, res: Response) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+app.use('*', (req: Request, res: Response) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ success: false, error: `Not found - ${req.originalUrl}` });
 });
 
 // -----------------------------------------------------------------------------

@@ -280,3 +280,33 @@ export const reorderMenuPages = asyncHandler(async (req: Request, res: Response)
     message: 'Menu pages reordered successfully'
   });
 });
+
+// Get Editorial Team page with authors
+export const getEditorialTeamPage = asyncHandler(async (req: Request, res: Response) => {
+  const Author = (await import('../models/Author')).default;
+  
+  // Get the Editorial Team static page
+  const page = await StaticPage.findOne({ 
+    slug: 'editorial-team',
+    isPublished: true 
+  });
+
+  // Get all active authors
+  const authors = await Author.find({ isActive: true })
+    .sort({ name: 1 } as any)
+    .select('name slug email title role biography professionalBackground expertise specialization location phone website socialMedia profileImage articlesCount joinDate');
+
+  res.json({
+    success: true,
+    data: {
+      page: page || {
+        title: 'Editorial Team',
+        slug: 'editorial-team',
+        content: 'Meet our dedicated team of journalists and editors.',
+        metaTitle: 'Editorial Team - Dominica News',
+        metaDescription: 'Meet the dedicated journalists and editors who bring you the latest news from Dominica and the Caribbean.'
+      },
+      authors
+    }
+  });
+});

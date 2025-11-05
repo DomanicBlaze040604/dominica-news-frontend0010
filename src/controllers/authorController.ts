@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Author, { IAuthor } from '../models/Author';
 import Article from '../models/Article';
+import { AuthorSlugService } from '../services/authorSlugService';
 
 // Create new author
 export const createAuthor = async (req: Request, res: Response) => {
@@ -10,6 +11,9 @@ export const createAuthor = async (req: Request, res: Response) => {
       email,
       bio,
       avatar,
+      title,
+      professionalBackground,
+      expertise,
       socialMedia,
       specialization,
       location,
@@ -26,11 +30,18 @@ export const createAuthor = async (req: Request, res: Response) => {
       });
     }
 
+    // Generate unique slug
+    const slug = await AuthorSlugService.generateSlug(name);
+
     const author = new Author({
       name,
+      slug,
       email,
       bio,
       avatar,
+      title,
+      professionalBackground,
+      expertise,
       socialMedia,
       specialization,
       location,
@@ -110,12 +121,17 @@ export const getAuthors = async (req: Request, res: Response) => {
   }
 };
 
-// Get single author by ID
+// Get single author by ID or slug
 export const getAuthorById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const author = await Author.findById(id);
+    // Try to find by ID first, then by slug
+    let author = await Author.findById(id);
+    if (!author) {
+      author = await Author.findOne({ slug: id });
+    }
+
     if (!author) {
       return res.status(404).json({
         success: false,
@@ -125,10 +141,10 @@ export const getAuthorById = async (req: Request, res: Response) => {
 
     // Get author's recent articles
     const recentArticles = await Article.find({
-      author: id,
+      author: author._id,
       status: 'published'
     })
-      .populate('category', 'name color')
+      .populate('category', 'name color slug')
       .sort({ publishedAt: -1 })
       .limit(5)
       .select('title slug excerpt featuredImage publishedAt views likes category');
@@ -138,6 +154,62 @@ export const getAuthorById = async (req: Request, res: Response) => {
       data: {
         author,
         recentArticles
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching author',
+      error: error.message
+    });
+  }
+};
+
+// Get author by slug specifically
+export const getAuthorBySlug = async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+
+    const author = await Author.findOne({ slug, isActive: true });
+    if (!author) {
+      return res.status(404).json({
+        success: false,
+        message: 'Author not found'
+      });
+    }
+
+    // Get author's published articles with pagination
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const [articles, totalArticles] = await Promise.all([
+      Article.find({
+        author: author._id,
+        status: 'published'
+      })
+        .populate('category', 'name color slug')
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('title slug excerpt featuredImage publishedAt views likes category isBreaking isFeatured'),
+      Article.countDocuments({
+        author: author._id,
+        status: 'published'
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        author,
+        articles,
+        pagination: {
+          current: page,
+          pages: Math.ceil(totalArticles / limit),
+          total: totalArticles,
+          limit
+        }
       }
     });
   } catch (error: any) {
@@ -168,6 +240,12 @@ export const updateAuthor = async (req: Request, res: Response) => {
           message: 'Author with this email already exists'
         });
       }
+    }
+
+    // If name is being updated, regenerate slug
+    if (updateData.name) {
+      const newSlug = await AuthorSlugService.generateSlug(updateData.name, id);
+      updateData.slug = newSlug;
     }
 
     const author = await Author.findByIdAndUpdate(id, updateData, {

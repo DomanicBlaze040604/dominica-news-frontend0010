@@ -3,7 +3,12 @@ import {
   uploadImage,
   uploadMultipleImages,
   deleteImage,
-  getImageInfo
+  getImageInfo,
+  serveOptimizedImage,
+  getImageOptimizationInfo,
+  updateImageMetadata,
+  checkImageReferences,
+  getImages
 } from '../controllers/imageController';
 import { 
   uploadSingle, 
@@ -13,6 +18,9 @@ import {
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = express.Router();
+
+// Get images with search and filtering
+router.get('/', getImages);
 
 // Upload single image
 router.post('/upload', 
@@ -34,6 +42,26 @@ router.post('/upload-multiple',
 
 // Get image info
 router.get('/:filename/info', getImageInfo);
+
+// Get optimized image with format negotiation
+router.get('/optimized/:filename/:variant?', serveOptimizedImage);
+
+// Get image optimization info
+router.get('/:filename/optimization', getImageOptimizationInfo);
+
+// Update image metadata
+router.put('/:id/metadata',
+  authenticateToken,
+  requireRole(['admin', 'editor']),
+  updateImageMetadata
+);
+
+// Check image references before deletion
+router.get('/:id/references',
+  authenticateToken,
+  requireRole(['admin', 'editor']),
+  checkImageReferences
+);
 
 // Delete image
 router.delete('/:filename', 

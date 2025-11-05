@@ -2,22 +2,29 @@ import express from 'express';
 import {
   getCategories,
   getCategoryBySlug,
+  checkSlugAvailability,
+  getCategoryPreview,
   createCategory,
   updateCategory,
   deleteCategory
 } from '../controllers/categoryController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticate, requireAdmin, requireEditor } from '../middleware/auth';
 import { validateCategory } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/errorHandler';
 
 const router = express.Router();
 
 // Public routes
 router.get('/', getCategories);
+router.get('/check-slug/:slug', checkSlugAvailability);
+router.get('/:slug/preview', getCategoryPreview);
 router.get('/:slug', getCategoryBySlug);
 
-// Protected routes (require authentication)
-router.post('/', authenticateToken, requireRole(['admin']), validateCategory, createCategory);
-router.put('/:id', authenticateToken, requireRole(['admin']), updateCategory);
-router.delete('/:id', authenticateToken, requireRole(['admin']), deleteCategory);
+// Protected routes - Editors can create and edit categories
+router.post('/', authenticate, requireEditor, validateCategory, handleValidationErrors, createCategory);
+router.put('/:id', authenticate, requireEditor, validateCategory, handleValidationErrors, updateCategory);
+
+// Admin-only routes - Only admins can delete categories
+router.delete('/:id', authenticate, requireAdmin, deleteCategory);
 
 export { router as categoryRoutes };

@@ -3,6 +3,7 @@ import {
   createAuthor,
   getAuthors,
   getAuthorById,
+  getAuthorBySlug,
   updateAuthor,
   deleteAuthor,
   getAuthorStats,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/', getAuthors);
+router.get('/slug/:slug', getAuthorBySlug);
 router.get('/:id', getAuthorById);
 router.get('/:id/stats', getAuthorStats);
 

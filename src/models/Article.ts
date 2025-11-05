@@ -7,6 +7,7 @@ export interface IArticle extends Document {
   content: string; // Rich text content (HTML)
   excerpt: string;
   featuredImage?: string;
+  featuredImageAlt?: string;
   gallery?: string[];
   author: mongoose.Types.ObjectId;
   category: mongoose.Types.ObjectId;
@@ -61,6 +62,12 @@ const ArticleSchema: Schema = new Schema({
   featuredImage: {
     type: String,
     default: null
+  },
+  featuredImageAlt: {
+    type: String,
+    default: null,
+    trim: true,
+    maxlength: [200, 'Featured image alt text cannot exceed 200 characters']
   },
   gallery: [{
     type: String

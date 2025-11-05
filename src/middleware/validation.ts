@@ -37,6 +37,11 @@ export const validateCategory = [
     .withMessage('Category name must be between 2 and 100 characters')
     .matches(/^[a-zA-Z0-9\s&-]+$/)
     .withMessage('Category name can only contain letters, numbers, spaces, ampersands, and hyphens'),
+  body('slug')
+    .optional()
+    .trim()
+    .matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .withMessage('Slug must contain only lowercase letters, numbers, and hyphens'),
   body('description')
     .optional()
     .trim()
@@ -215,6 +220,107 @@ export const validateSettings = [
     .optional()
     .isBoolean()
     .withMessage('Maintenance mode must be true or false'),
+];
+
+// Individual setting validation
+export const validateIndividualSetting = [
+  body('key')
+    .notEmpty()
+    .withMessage('Setting key is required')
+    .isIn([
+      'site_name', 'site_description', 'copyright_text', 'maintenance_mode', 'maintenance_message', 'logo',
+      'social_facebook', 'social_twitter', 'social_instagram', 'social_youtube', 'social_linkedin', 'social_tiktok',
+      'contact_email', 'contact_phone', 'contact_address', 'contact_workingHours',
+      'seo_meta_title', 'seo_meta_description', 'seo_keywords', 'seo_og_image', 'seo_canonical_url'
+    ])
+    .withMessage('Invalid setting key'),
+  body('value')
+    .custom((value, { req }) => {
+      const key = req.body.key;
+      
+      // Validate based on key type
+      if (key === 'site_name' && (!value || value.length > 100)) {
+        throw new Error('Site name must be between 1 and 100 characters');
+      }
+      if (key === 'site_description' && value && value.length > 500) {
+        throw new Error('Site description cannot exceed 500 characters');
+      }
+      if (key === 'copyright_text' && value && value.length > 200) {
+        throw new Error('Copyright text cannot exceed 200 characters');
+      }
+      if (key === 'maintenance_mode' && value !== 'true' && value !== 'false') {
+        throw new Error('Maintenance mode must be true or false');
+      }
+      if (key === 'maintenance_message' && value && value.length > 500) {
+        throw new Error('Maintenance message cannot exceed 500 characters');
+      }
+      if (key.startsWith('social_') && value && !isURL(value)) {
+        throw new Error('Social media URL must be valid');
+      }
+      if (key === 'contact_email' && value && !isEmail(value)) {
+        throw new Error('Contact email must be valid');
+      }
+      if (key === 'contact_phone' && value && value.length > 20) {
+        throw new Error('Phone number cannot exceed 20 characters');
+      }
+      if (key === 'seo_meta_title' && value && value.length > 60) {
+        throw new Error('Meta title cannot exceed 60 characters');
+      }
+      if (key === 'seo_meta_description' && value && value.length > 160) {
+        throw new Error('Meta description cannot exceed 160 characters');
+      }
+      if (key === 'seo_og_image' && value && !isURL(value)) {
+        throw new Error('Open Graph image must be a valid URL');
+      }
+      if (key === 'seo_canonical_url' && value && !isURL(value)) {
+        throw new Error('Canonical URL must be a valid URL');
+      }
+      
+      return true;
+    }),
+];
+
+// Helper functions for validation
+function isURL(str: string): boolean {
+  try {
+    new URL(str);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isEmail(str: string): boolean {
+  const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+  return emailRegex.test(str);
+}
+
+// Contact form validation
+export const validateContactForm = [
+  body('firstName')
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('First name must be between 1 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('First name can only contain letters and spaces'),
+  body('lastName')
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Last name must be between 1 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('Last name can only contain letters and spaces'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('subject')
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Subject must be between 5 and 200 characters'),
+  body('message')
+    .trim()
+    .isLength({ min: 10, max: 2000 })
+    .withMessage('Message must be between 10 and 2000 characters'),
 ];
 
 // Static page validation

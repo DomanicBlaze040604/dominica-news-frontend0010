@@ -9,9 +9,10 @@ import {
   deleteStaticPage,
   togglePageStatus,
   getMenuPages,
-  reorderMenuPages
+  reorderMenuPages,
+  getEditorialTeamPage
 } from '../controllers/staticPageController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticate, requireAdmin, requireEditor } from '../middleware/auth';
 import { validateStaticPage } from '../middleware/validation';
 
 const router = express.Router();
@@ -19,15 +20,18 @@ const router = express.Router();
 // Public routes
 router.get('/', getStaticPages);
 router.get('/menu', getMenuPages);
+router.get('/editorial-team', getEditorialTeamPage);
 router.get('/slug/:slug', getStaticPageBySlug);
 
-// Admin routes
-router.get('/admin', authenticateToken, requireRole(['admin', 'editor']), getStaticPagesAdmin);
-router.get('/admin/:id', authenticateToken, requireRole(['admin', 'editor']), getStaticPageById);
-router.post('/admin', authenticateToken, requireRole(['admin']), validateStaticPage, createStaticPage);
-router.put('/admin/:id', authenticateToken, requireRole(['admin']), updateStaticPage);
-router.delete('/admin/:id', authenticateToken, requireRole(['admin']), deleteStaticPage);
-router.patch('/admin/:id/toggle-status', authenticateToken, requireRole(['admin']), togglePageStatus);
-router.put('/reorder', authenticateToken, requireRole(['admin']), reorderMenuPages);
+// Protected routes - Editors can view and manage static pages
+router.get('/admin', authenticate, requireEditor, getStaticPagesAdmin);
+router.get('/admin/:id', authenticate, requireEditor, getStaticPageById);
+router.post('/admin', authenticate, requireEditor, validateStaticPage, createStaticPage);
+router.put('/admin/:id', authenticate, requireEditor, updateStaticPage);
+router.patch('/admin/:id/toggle-status', authenticate, requireEditor, togglePageStatus);
+
+// Admin-only routes - Only admins can delete pages and reorder menu
+router.delete('/admin/:id', authenticate, requireAdmin, deleteStaticPage);
+router.put('/reorder', authenticate, requireAdmin, reorderMenuPages);
 
 export { router as staticPageRoutes };

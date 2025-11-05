@@ -12,6 +12,7 @@ declare global {
         email: string;
         fullName: string;
         role: string;
+        lastLogin?: Date;
       };
     }
   }
@@ -34,11 +35,29 @@ export const authenticate = async (
     // Verify token
     const decoded: JWTPayload = verifyToken(token);
 
+    // Check token type
+    if (decoded.tokenType !== 'access') {
+      throw new CustomError('Invalid token type', 401);
+    }
+
     // Get user from database
-    const user = await User.findById(decoded.userId).select('-passwordHash');
+    const user = await User.findById(decoded.userId).select('-passwordHash -refreshTokens');
 
     if (!user) {
       throw new CustomError('User not found', 401);
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new CustomError('Account is deactivated', 401);
+    }
+
+    // Check if password was changed after token was issued
+    if (user.passwordChangedAt && decoded.iat) {
+      const passwordChangedTimestamp = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (passwordChangedTimestamp > decoded.iat) {
+        throw new CustomError('Password was changed. Please log in again.', 401);
+      }
     }
 
     // Add user to request object
@@ -47,6 +66,7 @@ export const authenticate = async (
       email: user.email,
       fullName: user.fullName,
       role: user.role,
+      lastLogin: user.lastLogin,
     };
 
     next();
@@ -75,6 +95,43 @@ export const authorize = (...roles: string[]) => {
 
 // Middleware specifically for admin routes
 export const requireAdmin = authorize('admin');
+
+// Middleware for admin and editor routes
+export const requireEditor = authorize('admin', 'editor');
+
+// Optional authentication - doesn't fail if no token provided
+export const optionalAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decoded: JWTPayload = verifyToken(token);
+
+      if (decoded.tokenType === 'access') {
+        const user = await User.findById(decoded.userId).select('-passwordHash -refreshTokens');
+        
+        if (user && user.isActive) {
+          req.user = {
+            id: (user._id as any).toString(),
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            lastLogin: user.lastLogin,
+          };
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore authentication errors for optional auth
+  }
+
+  next();
+};
 
 // Aliases for backward compatibility
 export const authenticateToken = authenticate;
