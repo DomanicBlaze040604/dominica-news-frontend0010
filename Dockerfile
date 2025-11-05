@@ -1,12 +1,31 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+# Multi-stage build for better optimization
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install all dependencies (including dev dependencies for building)
+RUN npm ci
+
+# Copy source code
+COPY src/ ./src/
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
 
 # Set working directory
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /tmp/logs /tmp/uploads && \
@@ -15,11 +34,13 @@ RUN mkdir -p /tmp/logs /tmp/uploads && \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application
-COPY dist/ ./dist/
+# Copy built application from builder stage
+COPY --from=builder /app/dist/ ./dist/
+
+# Copy production files
 COPY start-production.js ./
 COPY .env.production ./
 
